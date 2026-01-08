@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Лояльность | Ресторан</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #4CAF50, #667eea);
+            --accent-gradient: linear-gradient(135deg, #2196F3, #667eea);
+            --warn-gradient: linear-gradient(135deg, #FF9800, #FF5722);
+            --gold-gradient: linear-gradient(135deg, #FFD700, #FFA500);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa; color: #1a1a1a; overflow-x: hidden; min-height: 100vh;
+        }
+
+        /* Preloader */
+        .preloader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--primary-gradient); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.3s;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white; border-radius: 50%; animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Navbar */
+        .navbar {
+            position: fixed; top: 0; left: 0; right: 0; height: 60px; background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px); display: flex; align-items: center; padding: 0 20px; z-index: 100;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+        .nav-icon { background: none; border: none; font-size: 20px; padding: 10px; border-radius: 12px; cursor: pointer; }
+
+        /* Screens */
+        .screen { 
+            display: none; padding: 80px 20px 120px; min-height: calc(100vh - 180px); opacity: 0;
+            transform: translateY(20px); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .screen.active { display: block; opacity: 1; transform: translateY(0); }
+
+        /* Dashboard */
+        .profile-header { display: flex; align-items: center; gap: 15px; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+        .avatar { width: 60px; height: 60px; border-radius: 50%; background: var(--primary-gradient); display: flex; align-items: center; justify-content: center; font-size: 24px; color: white; flex-shrink: 0; }
+        .balance-card { background: white; border-radius: 24px; padding: 30px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.08); margin-bottom: 25px; }
+        .balance-value { font-size: 48px; font-weight: 800; background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
+        .progress-container { margin-top: 20px; }
+        .progress-label { font-size: 14px; color: #666; margin-bottom: 12px; }
+        .progress-bar { height: 10px; background: #e0e0e0; border-radius: 5px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--primary-gradient); border-radius: 5px; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); width: 0%; }
+        .quick-actions { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 25px; }
+        .action-btn { height: 60px; border-radius: 16px; font-size: 16px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; box-shadow: 0 8px 25px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .action-btn.primary { background: var(--primary-gradient); color: white; }
+        .action-btn.secondary { background: var(--accent-gradient); color: white; }
+        .action-btn.accent { background: var(--warn-gradient); color: white; }
+        .next-reward { background: var(--primary-gradient); color: white; padding: 20px; border-radius: 16px; display: flex; align-items: center; gap: 15px; text-align: center; }
+
+        /* Checkin */
+        .checkin-methods { display: flex; gap: 12px; margin-bottom: 30px; overflow-x: auto; padding-bottom: 10px; }
+        .method-btn { flex: 1; min-width: 160px; padding: 15px 10px; border: 2px solid #eee; background: white; border-radius: 12px; text-align: center; cursor: pointer; }
+        .method-btn.active { border-color: #4CAF50; background: #4CAF50; color: white; }
+        .scanner-placeholder { text-align: center; padding: 40px 20px; background: linear-gradient(135deg, #f0f8ff, #e6f3ff); border-radius: 20px; border: 3px dashed #2196F3; }
+        .input-form.hidden, .tab-content { display: none; }
+        .input-form input { width: 100%; padding: 18px; border: 2px solid #eee; border-radius: 12px; font-size: 18px; margin-bottom: 20px; }
+        .btn-full { width: 100%; height: 56px; border-radius: 16px; font-size: 16px; font-weight: 600; border: none; cursor: pointer; background: var(--primary-gradient); color: white; }
+
+        /* QR Canvas */
+        .qr-code-lg, .qr-code-xl { border-radius: 16px; border: 3px solid #e0e0e0; background: #fff; display: block; margin: 20px auto; }
+
+        /* Bottom Navigation с SVG */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px); display: flex; height: 80px; box-shadow: 0 -2px 20px rgba(0,0,0,0.1); z-index: 100;
+        }
+        .nav-item { flex: 1; border: none; background: none; padding: 8px; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+        .nav-item.active { color: #4CAF50; }
+        .nav-icon-svg { width: 24px; height: 24px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); transition: all 0.2s ease; }
+        .nav-item.active .nav-icon-svg { filter: drop-shadow(0 0 8px #4CAF50) brightness(1.2); }
+
+        .status-badge { padding: 6px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; margin-top: 8px; background: #ffebee; color: #c62828; }
+    </style>
+</head>
+<body>
+    <!-- Preloader -->
+    <div id="preloader" class="preloader">
+        <div class="spinner"></div>
+        <p>Загружаем вашу лояльность...</p>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <button id="menuBtn" class="nav-icon">☰</button>
+        <h2 id="pageTitle">Лояльность</h2>
+        <button id="notifBtn" class="nav-icon">🔔</button>
+    </nav>
+
+    <!-- Main Content -->
+    <main id="mainContent">
+        <!-- Главная -->
+        <div id="dashboardScreen" class="screen active">
+            <div class="profile-header">
+                <div class="avatar" id="userAvatar">👤</div>
+                <div class="profile-info">
+                    <h1 id="userName">Загрузка...</h1>
+                    <div class="status-badge" id="statusBadge">🥉 Бронза</div>
+                </div>
+            </div>
+
+            <div class="balance-card">
+                <div class="balance-value" id="balanceValue">1,240</div>
+                <div class="balance-label">баллов = <span id="rublesValue">1,240₽</span></div>
+                <div class="progress-container">
+                    <div class="progress-label">
+                        До <span id="nextLevelName">Серебра</span>: <span id="nextLevelPoints">760</span> баллов
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="quick-actions">
+                <button class="action-btn primary" onclick="loyaltyApp.showScreen('checkinScreen')">
+                    📸 Начислить бонусы
+                </button>
+                <button class="action-btn secondary" onclick="loyaltyApp.showScreen('spendScreen')">
+                    💰 Потратить баллы
+                </button>
+                <button class="action-btn accent" onclick="loyaltyApp.showScreen('qrCardScreen')">
+                    🪪 Моя карта
+                </button>
+            </div>
+
+            <div class="next-reward">
+                <div class="reward-icon">🎁</div>
+                <div class="reward-text">Еще 2 визита — десерт в подарок!</div>
+            </div>
+        </div>
+
+        <!-- Начисление бонусов -->
+        <div id="checkinScreen" class="screen">
+            <div class="checkin-methods">
+                <button class="method-btn active" data-method="qr">
+                    📱 Через кассу (QR)
+                </button>
+                <button class="method-btn" data-method="manual">
+                    💳 Ввести чек вручную
+                </button>
+            </div>
+            
+            <div id="qrScanner" class="scanner-placeholder">
+                <div class="scanner-frame"></div>
+                <p>Показать QR кассиру для автоматического начисления</p>
+            </div>
+            
+            <div id="manualInput" class="input-form">
+                <input type="number" id="checkAmount" placeholder="Сумма чека, ₽ (минимум 100)" min="100">
+                <button class="btn-full primary" onclick="loyaltyApp.processManualCheck()">Начислить бонусы</button>
+            </div>
+        </div>
+
+        <!-- Списание -->
+        <div id="spendScreen" class="screen">
+            <div class="spend-tabs">
+                <button class="tab-btn active" data-tab="discount">Скидка</button>
+                <button class="tab-btn" data-tab="rewards">Подарки</button>
+            </div>
+            
+            <div id="discountTab">
+                <div class="slider-container">
+                    <input type="range" id="discountSlider" min="50" max="1000" value="100" step="50">
+                    <div class="slider-value">
+                        <span id="discountAmount">100</span> баллов = <span id="discountRub">100₽</span>
+                    </div>
+                </div>
+                <canvas id="discountQR" class="qr-code-lg" width="220" height="220"></canvas>
+                <p class="qr-hint" style="text-align:center;color:#666;margin-top:15px;">Покажите QR-код на кассе</p>
+            </div>
+        </div>
+
+        <!-- Моя карта -->
+        <div id="qrCardScreen" class="screen">
+            <div class="card-header" style="text-align:center;margin-bottom:30px;">
+                <h3 style="margin-bottom:10px;">🪪 Ваша карта лояльности</h3>
+                <div class="status-large" id="statusLarge" style="font-size:28px;font-weight:800;">🥉 Бронза</div>
+            </div>
+            <canvas id="loyaltyQR" class="qr-code-xl" width="280" height="280"></canvas>
+            <div class="card-id" style="text-align:center;font-size:16px;color:#666;margin:15px 0;">
+                ID: <strong id="cardId">R-LOY-12345</strong>
+            </div>
+            <p style="text-align:center;color:#666;">Покажите на кассе для начисления/списания бонусов</p>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation с SVG иконками (эмодзи как fallback) -->
+    <div class="bottom-nav">
+        <button class="nav-item active" data-nav="dashboard">
+            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none">
+                <path d="M3 12L5 10M5 10L12 4L19 10M5 10V20C5 20.5523 5.44772 21 6 21H9M19 10V20C19 20.5523 18.5523 21 18 21H15M19 10L12 4M5 10L12 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div>Главная</div>
+        </button>
+        <button class="nav-item" data-nav="promos">
+            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none">
+                <path d="M20 6H12V4H10V6H4V21H20V6ZM12 14C10.3431 14 9 12.6569 9 11C9 9.34315 10.3431 8 12 8C13.6569 8 15 9.34315 15 11C15 12.6569 13.6569 14 12 14Z" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            <div>Акции</div>
+        </button>
+        <button class="nav-item" data-nav="qr-card">
+            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none">
+                <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2"/>
+                <path d="M4 8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <div>Карта</div>
+        </button>
+        <button class="nav-item" data-nav="history">
+            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <div>История</div>
+        </button>
+        <button class="nav-item" data-nav="profile">
+            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none">
+                <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            <div>Профиль</div>
+        </button>
+    </div>
+
+    <script>
+        class LoyaltyApp {
+            constructor() {
+                this.tg = window.Telegram?.WebApp;
+                this.currentUser = { id: 12345, first_name: 'Гость' };
+                this.userData = {};
+                this.init();
+            }
+
+            init() {
+                if (this.tg) {
+                    this.tg.ready();
+                    this.tg.expand();
+                    this.currentUser = this.tg.initDataUnsafe?.user || this.currentUser;
+                    this.tg.MainButton.setText('💾 Синхронизировать').onClick(() => this.sendToBot()).show();
+                    this.tg.MainButton.setParams({ color: '#4CAF50', text_color: '#fff' });
+                }
+                this.loadUserData();
+                this.bindEvents();
+                this.renderAll();
+                this.hidePreloader();
+            }
+
+            loadUserData() {
+                const key = `loyalty_${this.currentUser.id}`;
+                this.userData = JSON.parse(localStorage.getItem(key)) || {
+                    balance: 1240, bonusRate: 0.08, phone: '',
+                    history: [
+                        {type: 'add', amount: 320, date: '07.01', note: 'Чек 4000₽'},
+                        {type: 'spend', amount: 500, date: '05.01', note: 'Скидка 500₽'}
+                    ],
+                    referralCode: 'R-LOY-' + Math.floor(Math.random()*10000)
+                };
+            }
+
+            bindEvents() {
+                document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => {
+                    btn.onclick = (e) => {
+                        const navId = e.currentTarget.dataset.nav;
+                        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                        document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
+                        document.getElementById(navId + 'Screen')?.classList.add('active');
+                        e.currentTarget.classList.add('active');
+                        this.renderScreen(navId);
+                    };
+                });
+
+                document.querySelectorAll('.method-btn').forEach(btn => {
+                    btn.onclick = (e) => {
+                        document.querySelectorAll('.method-btn').forEach(b => b.classList.remove('active'));
+                        e.currentTarget.classList.add('active');
+                        const method = e.currentTarget.dataset.method;
+                        document.getElementById('qrScanner').classList.toggle('hidden', method !== 'qr');
+                        document.getElementById('manualInput').classList.toggle('hidden', method !== 'manual');
+                    };
+                });
+
+                document.getElementById('discountSlider').oninput = (e) => {
+                    const value = e.target.value;
+                    document.getElementById('discountAmount').textContent = value;
+                    document.getElementById('discountRub').textContent = value + '₽';
+                    this.generateQR('discountQR', `СПИСАТЬ ${value}
+${this.userData.referralCode}`);
+                };
+            }
+
+            processManualCheck() {
+                const amount = parseFloat(document.getElementById('checkAmount').value);
+                if (amount < 100) return this.showAlert('Сумма чека от 100₽');
+                const bonus = Math.floor(amount * this.userData.bonusRate * 100) / 100;
+                this.userData.balance += bonus;
+                this.userData.history.unshift({type: 'add', amount: bonus, date: new Date().toLocaleDateString('ru'), note: `Чек ${amount.toLocaleString()}₽`});
+                this.saveData();
+                this.renderAll();
+                document.getElementById('checkAmount').value = '';
+                this.showAlert(`+${bonus} баллов!`);
+            }
+
+            generateQR(canvasId, text) {
+                const canvas = document.getElementById(canvasId);
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+                gradient.addColorStop(0, '#f8f9fa');
+                gradient.addColorStop(1, '#e9ecef');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(10, 10, canvas.width-20, canvas.height-20);
+                ctx.fillStyle = '#333';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const lines = text.split('
+');
+                lines.forEach((line, i) => ctx.fillText(line, canvas.width/2, 50 + i * 25));
+                ctx.strokeStyle = '#4CAF50';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(5, 5, canvas.width-10, canvas.height-10);
+            }
+
+            renderAll() {
+                document.getElementById('userName').textContent = this.currentUser.first_name;
+                document.getElementById('userAvatar').textContent = this.currentUser.first_name?.[0]?.toUpperCase() || '👤';
+                document.getElementById('balanceValue').textContent = this.userData.balance.toLocaleString();
+                document.getElementById('rublesValue').textContent = this.userData.balance.toLocaleString() + '₽';
+                document.getElementById('statusBadge').textContent = '🥉 Бронза';
+                document.getElementById('cardId').textContent = this.userData.referralCode;
+                this.generateQR('loyaltyQR', `ID: ${this.userData.referralCode}
+${this.userData.balance} баллов
+Бронза`);
+                this.generateQR('discountQR', `СПИСАТЬ 100
+${this.userData.referralCode}`);
+            }
+
+            saveData() { localStorage.setItem(`loyalty_${this.currentUser.id}`, JSON.stringify(this.userData)); }
+            sendToBot() { if (this.tg) this.tg.sendData(JSON.stringify({userId: this.currentUser.id, balance: this.userData.balance})); }
+            showAlert(msg) { if (this.tg) this.tg.showAlert(msg); else alert(msg); }
+            hidePreloader() { setTimeout(() => document.getElementById('preloader').style.display = 'none', 1500); }
+        }
+
+        let loyaltyApp;
+        document.addEventListener('DOMContentLoaded', () => { loyaltyApp = new LoyaltyApp(); });
+    </script>
+</body>
+</html>
