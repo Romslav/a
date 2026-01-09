@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Лояльность | Ресторан</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Preloader -->
+    <div id="preloader" class="preloader">
+        <div class="spinner"></div>
+        <p>Загружаем вашу лояльность...</p>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <img src="icons/menu.svg" id="menuBtn" class="nav-icon" alt="Меню" width="24" height="24">
+        <h2 id="pageTitle">Лояльность</h2>
+        <img src="icons/menu.svg" id="notifBtn" class="nav-icon" alt="Уведомления" width="24" height="24">
+    </nav>
+
+    <!-- Main Content -->
+    <main id="mainContent">
+        <!-- 🏠 ГЛАВНАЯ -->
+        <div id="dashboardScreen" class="screen active" data-nav="dashboard">
+            <div class="profile-header">
+                <div class="avatar" id="userAvatar">👤</div>
+                <div class="profile-info">
+                    <h1 id="userName">Загрузка...</h1>
+                    <div class="status-badge" id="statusBadge">🥉 Бронза</div>
+                </div>
+            </div>
+
+            <div class="balance-card">
+                <div class="balance-value" id="balanceValue">1,240</div>
+                <div class="balance-label">баллов = <span id="rublesValue">1,240₽</span></div>
+                <div class="progress-container">
+                    <div class="progress-label">
+                        До <span id="nextLevelName">Серебра</span>: 
+                        <span id="nextLevelPoints">760</span> баллов
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="quick-actions">
+                <button class="action-btn primary" onclick="loyaltyApp.showScreen('checkinScreen')">
+                    <img src="icons/camera.svg" class="action-icon" alt="Камера" width="20" height="20"/>
+                    <span>Начислить бонусы</span>
+                </button>
+                <button class="action-btn secondary" onclick="loyaltyApp.showScreen('spendScreen')">
+                    <img src="icons/wallet.svg" class="action-icon" alt="Кошелек" width="20" height="20"/>
+                    <span>Потратить баллы</span>
+                </button>
+                <button class="action-btn accent" onclick="loyaltyApp.showScreen('qrCardScreen')">
+                    <img src="icons/card.svg" class="action-icon" alt="Карта" width="20" height="20"/>
+                    <span>Моя карта</span>
+                </button>
+            </div>
+
+            <div class="next-reward">
+                <img src="icons/gift.svg" class="reward-icon" alt="Подарок" width="32" height="32"/>
+                <div class="reward-text">Еще 2 визита — десерт в подарок!</div>
+            </div>
+        </div>
+
+        <!-- 📸 НАЧИСЛЕНИЕ -->
+        <div id="checkinScreen" class="screen" data-nav="checkin">
+            <div class="checkin-methods">
+                <button class="method-btn active" data-method="qr">
+                    <img src="icons/camera.svg" class="method-icon" alt="QR" width="20" height="20"/>
+                    Через кассу (QR)
+                </button>
+                <button class="method-btn" data-method="manual">
+                    <img src="icons/wallet.svg" class="method-icon" alt="Чек" width="20" height="20"/>
+                    Ввести чек вручную
+                </button>
+            </div>
+            
+            <div id="qrScanner" class="scanner-placeholder">
+                <div class="scanner-frame"></div>
+                <p>Показать QR кассиру для автоматического начисления</p>
+            </div>
+            
+            <div id="manualInput" class="input-form hidden">
+                <input type="number" id="checkAmount" placeholder="Сумма чека, ₽ (минимум 100)" min="100">
+                <button class="btn-full primary" onclick="loyaltyApp.processManualCheck()">Начислить бонусы</button>
+            </div>
+        </div>
+
+        <!-- 💰 СПИСАНИЕ -->
+        <div id="spendScreen" class="screen" data-nav="spend">
+            <div class="spend-tabs">
+                <button class="tab-btn active" data-tab="discount">Скидка</button>
+                <button class="tab-btn" data-tab="rewards">Подарки</button>
+            </div>
+            
+            <div id="discountTab" class="tab-content active">
+                <div class="slider-container">
+                    <input type="range" id="discountSlider" min="50" max="1000" value="100" step="50">
+                    <div class="slider-value">
+                        <span id="discountAmount">100</span> баллов = <span id="discountRub">100₽</span>
+                    </div>
+                </div>
+                <canvas id="discountQR" class="qr-code-lg" width="220" height="220"></canvas>
+                <p class="qr-hint">Покажите QR-код на кассе</p>
+            </div>
+            
+            <div id="rewardsTab" class="tab-content">
+                <div class="rewards-grid">
+                    <div class="reward-item" onclick="loyaltyApp.redeemReward('coffee')">
+                        <img src="icons/gift.svg" class="reward-img" alt="Кофе" width="48" height="48"/>
+                        <div>Кофе в подарок</div>
+                        <div class="reward-cost">200 баллов</div>
+                    </div>
+                    <div class="reward-item" onclick="loyaltyApp.redeemReward('dessert')">
+                        <img src="icons/gift.svg" class="reward-img" alt="Десерт" width="48" height="48"/>
+                        <div>Десерт</div>
+                        <div class="reward-cost">400 баллов</div>
+                    </div>
+                    <div class="reward-item" onclick="loyaltyApp.redeemReward('wine')">
+                        <img src="icons/gift.svg" class="reward-img" alt="Вино" width="48" height="48"/>
+                        <div>Вино</div>
+                        <div class="reward-cost">2000 баллов</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🪪 КАРТА -->
+        <div id="qrCardScreen" class="screen" data-nav="qr-card">
+            <div class="card-header">
+                <h3>🪪 Ваша карта лояльности</h3>
+                <div class="status-large" id="statusLarge">🥉 Бронза</div>
+            </div>
+            <canvas id="loyaltyQR" class="qr-code-xl" width="280" height="280"></canvas>
+            <div class="card-id">
+                ID: <strong id="cardId">R-LOY-12345</strong>
+            </div>
+            <p class="card-hint">Покажите на кассе для начисления/списания бонусов</p>
+        </div>
+
+        <!-- 📊 ИСТОРИЯ -->
+        <div id="historyScreen" class="screen" data-nav="history">
+            <div id="historyList" class="history-list"></div>
+        </div>
+
+        <!-- 👤 ПРОФИЛЬ -->
+        <div id="profileScreen" class="screen" data-nav="profile">
+            <div class="profile-form">
+                <div class="form-group">
+                    <label>Телефон</label>
+                    <input type="tel" id="phoneInput" placeholder="+7 (999) 123-45-67">
+                </div>
+                <button class="btn-full primary" onclick="loyaltyApp.saveProfile()">Сохранить профиль</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <button class="nav-item active" data-nav="dashboard">
+            <img src="icons/home.svg" class="nav-icon-svg" alt="Главная" width="24" height="24"/>
+            <div>Главная</div>
+        </button>
+        <button class="nav-item" data-nav="promos">
+            <img src="icons/gift.svg" class="nav-icon-svg" alt="Акции" width="24" height="24"/>
+            <div>Акции</div>
+        </button>
+        <button class="nav-item" data-nav="qr-card">
+            <img src="icons/card.svg" class="nav-icon-svg" alt="Карта" width="24" height="24"/>
+            <div>Карта</div>
+        </button>
+        <button class="nav-item" data-nav="history">
+            <img src="icons/history.svg" class="nav-icon-svg" alt="История" width="24" height="24"/>
+            <div>История</div>
+        </button>
+        <button class="nav-item" data-nav="profile">
+            <img src="icons/profile.svg" class="nav-icon-svg" alt="Профиль" width="24" height="24"/>
+            <div>Профиль</div>
+        </button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
